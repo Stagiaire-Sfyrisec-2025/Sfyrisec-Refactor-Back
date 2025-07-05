@@ -1,0 +1,8 @@
+parameters:
+    paths:
+        - %rootDir%/../../../backend/app
+    level: 8
+    symfony:
+        enabled: true
+        version: 6
+    checkMissingIterableReturnType: true
