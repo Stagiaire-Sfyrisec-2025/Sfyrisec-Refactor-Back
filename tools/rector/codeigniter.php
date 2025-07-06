@@ -2,12 +2,14 @@
 use Rector\Config\RectorConfig;
 use Rector\Transform\Rector\MethodCall\MethodCallRector;
 use Rector\Transform\ValueObject\MethodCallRename;
+use Rector\Transform\Rector\FileSystem\FileContentRector;
+use Rector\Transform\ValueObject\StringReplace;
 
 return static function (RectorConfig $rectorConfig): void {
     // Règles pour migrer CodeIgniter 3 vers CodeIgniter 4
     $rectorConfig->sets([\Rector\CodeIgniter\Set\CodeIgniterLevelSetList::UP_TO_CODEIGNITER_4]);
 
-    // Règle pour migrer les helpers (ex. : form_open)
+    // Règle pour migrer les helpers (ex. : $this->load->helper vers helper())
     $rectorConfig->ruleWithConfiguration(
         MethodCallRector::class,
         [
@@ -32,6 +34,39 @@ return static function (RectorConfig $rectorConfig): void {
                 'CI_Session',
                 'userdata',
                 '\CodeIgniter\Session\Session::get'
+            ),
+        ]
+    );
+
+    // Règle pour migrer les routes (ex. : $route['...'] vers Routes::add)
+    $rectorConfig->ruleWithConfiguration(
+        FileContentRector::class,
+        [
+            new StringReplace(
+                '$route[\'([^\']+)\'] = \'([^\']+)\';',
+                'Routes::add(\'$1\', \'$2\');'
+            ),
+        ]
+    );
+
+    // Règle pour migrer les modèles (ex. : CI_Model vers CodeIgniter\Model)
+    $rectorConfig->ruleWithConfiguration(
+        FileContentRector::class,
+        [
+            new StringReplace(
+                'extends CI_Model',
+                'extends \CodeIgniter\Model'
+            ),
+        ]
+    );
+
+    // Règle pour migrer les configurations (ex. : $config['...'] vers Config\Services)
+    $rectorConfig->ruleWithConfiguration(
+        FileContentRector::class,
+        [
+            new StringReplace(
+                '$config[\'([^\']+)\'] = ([^;]+);',
+                '\CodeIgniter\Config\Services::set(\'$1\', $2);'
             ),
         ]
     );

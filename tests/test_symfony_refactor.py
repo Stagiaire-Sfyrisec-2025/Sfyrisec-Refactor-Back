@@ -65,3 +65,84 @@ class Kernel extends HttpKernel {
     
     assert refactored_code.strip() == expected_code.strip()
     assert "Refactored bundle" in logs
+
+@pytest.mark.asyncio
+async def test_symfony_route_refactor(temp_file, mock_run_tool):
+    """Teste la migration des routes Symfony."""
+    input_code = """<?php
+use Symfony\Component\Routing\Annotation\Route;
+class HomeController {
+    /**
+     * @Route("/home", name="home")
+     */
+    public function index() {}
+}
+"""
+    expected_code = """<?php
+use Symfony\Component\Routing\Attribute\Route;
+class HomeController {
+    #[Route('/home', name: 'home')]
+    public function index() {}
+}
+"""
+    with open(temp_file, "w") as f:
+        f.write(input_code)
+    
+    mock_run_tool.return_value = ("Refactored route", "")
+    
+    refactored_code, logs = symfony_refactor(temp_file, version="6")
+    
+    assert refactored_code.strip() == expected_code.strip()
+    assert "Refactored route" in logs
+
+@pytest.mark.asyncio
+async def test_symfony_entity_refactor(temp_file, mock_run_tool):
+    """Teste la migration des entités Doctrine."""
+    input_code = """<?php
+use Doctrine\ORM\Mapping as ORM;
+/**
+ * @ORM\Entity
+ */
+class User {}
+"""
+    expected_code = """<?php
+use Doctrine\ORM\Mapping\Attribute\Entity;
+#[Entity]
+class User {}
+"""
+    with open(temp_file, "w") as f:
+        f.write(input_code)
+    
+    mock_run_tool.return_value = ("Refactored entity", "")
+    
+    refactored_code, logs = symfony_refactor(temp_file, version="6")
+    
+    assert refactored_code.strip() == expected_code.strip()
+    assert "Refactored entity" in logs
+
+@pytest.mark.asyncio
+async def test_symfony_config_refactor(temp_file, mock_run_tool):
+    """Teste la migration des configurations Symfony."""
+    input_code = """<?php
+return [
+    'parameters' => [
+        'app.locale' => 'en',
+    ],
+];
+"""
+    expected_code = """<?php
+return [
+    'parameters' => [
+        public const APP_LOCALE = 'en';
+    ],
+];
+"""
+    with open(temp_file, "w") as f:
+        f.write(input_code)
+    
+    mock_run_tool.return_value = ("Refactored config", "")
+    
+    refactored_code, logs = symfony_refactor(temp_file, version="6")
+    
+    assert refactored_code.strip() == expected_code.strip()
+    assert "Refactored config" in logs
