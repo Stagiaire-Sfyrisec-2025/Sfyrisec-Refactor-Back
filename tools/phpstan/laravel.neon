@@ -1,8 +1,0 @@
-parameters:
-    paths:
-        - %rootDir%/../../../backend/app
-    level: 8
-    laravel:
-        enabled: true
-        version: 8
-    checkMissingIterableReturnType: true

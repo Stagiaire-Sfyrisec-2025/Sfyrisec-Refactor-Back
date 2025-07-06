@@ -1,9 +1,0 @@
-parameters:
-    paths:
-        - %rootDir%/../../../backend/app
-    level: 8
-    codeIgniter:
-        enabled: true
-        version: 4
-    checkMissingIterableReturnType: true
-    checkGenericClassInNonGenericObjectType: false
