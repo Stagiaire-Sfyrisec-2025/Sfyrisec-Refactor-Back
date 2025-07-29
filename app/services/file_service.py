@@ -5,7 +5,7 @@ import os
 import zipfile
 import tarfile
 from services.language_detector import detect_language_script, detect_languages_in_folder
-from services.analyze_service import analyze_complexity, analyze_complexity_folder, analyze_redundancy, analyze_redundancy_folder, analyze_convention, analyze_convention_folder, analyze_dead_code, analyze_dead_code_folder
+from services.analyze_service import full_analyze_script, analyze_folder
 
 async def handle_upload(file):
     filename = file.filename.lower()
@@ -15,20 +15,14 @@ async def handle_upload(file):
             file_path = await save_upload_file_temporarily(file, temp_dir)
 
             language = detect_language_script(file_path)
-            result = analyze_complexity(file_path)
-            result_redundancy = analyze_redundancy(file_path)
-            result_convention = analyze_convention(file_path)
-            result_dead_code = analyze_dead_code(file_path)
+            result = full_analyze_script(file_path)
             return JSONResponse(content={
                 "status": "success",
                 "type": "script",
                 "filename": file.filename,
                 "saved_to": file_path,
                 "language": language,
-                "complexity": result,
-                "redondancy": result_redundancy,
-                "convention": result_convention,
-                "dead code": result_dead_code
+                "analyse result": result
             })
 
     #Projet compresse(.zip ou .tar.gz)    
@@ -49,18 +43,12 @@ async def handle_upload(file):
                     tar.extractall(extract_dir)
         
             languages = detect_languages_in_folder(extract_dir)
-            results = analyze_complexity_folder(extract_dir)
-            results_redundancy = analyze_redundancy_folder(extract_dir)
-            results_convention = analyze_convention_folder(extract_dir)
-            results_dead_code = analyze_dead_code_folder(extract_dir)
+            results = analyze_folder(extract_dir)
             return JSONResponse(content={
                 "status": "success",
                 "type": "project",
                 "filename": file.filename,
                 "extracted_to": extract_dir,
                 "languages_detected": languages,
-                "complexity": results,
-                "redundancy": results_redundancy,
-                "convention": results_convention,
-                "dead code": results_dead_code
+                "analyses result": results
             })

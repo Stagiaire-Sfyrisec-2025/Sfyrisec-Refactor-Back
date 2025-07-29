@@ -20,52 +20,46 @@ def analyze_complexity(file_path):
             })
     return results
 
-def analyze_complexity_folder(folder_path):
-    all_results = {}
-    for root, dirs, files in os.walk(folder_path):
-        #Exclusion des dossiers inutiles
-        dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
-        for file in files:
-            file_path = os.path.join(root, file)
-            if file.endswith(".py"):
-                result = analyze_complexity(file_path)
-                all_results[file_path] = result
-    return all_results
-
 #analyse de redondance
+def sanitize_dict(d):
+    """Convertir les sets en listes pour eviter les erreurs JSON"""
+    return {
+        k: list(v) if isinstance(v, set) else v
+        for k, v in d.items()
+    }
+
 def analyze_redundancy(file_path):
     try:
         result = subprocess.run(
-            ["pylint", file_path, "-f", "json"],
-            capture_output=True
+            ["pylint", file_path, "-f", "json", "--disable=all", "--enable=W0611,W0612,R0801"],
+            capture_output=True,
+            text=True
         )
 
-        output_lines = result.stdout.strip().splitlines()
-        messages = [json.loads(line) for line in output_lines if line.strip()]
+        output = result.stdout.strip()
+
+        if not output:
+            return [] #Aucune probleme detectee
+        
+        try:
+            messages = json.loads(output)
+        except json.JSONDecodeError as e:
+            return [{"error": f"JSON decode failed: {str(e)}", "raw_output": output}]
 
         redundancy_issues = []
         for msg in messages:
-            if msg.get("message_id") in ["W0611", "W0612", "R0801"]:
-                redundancy_issues.append({
+                redundancy_issues.append(sanitize_dict({
                     "type": msg.get("symbol"),
                     "line": msg.get("line"),
-                    "message": msg.get("message")
-                })
+                    "message": msg.get("message"),
+                    "path": msg.get("path"),
+                    "message_id": msg.get("message_id")
+                }))
+
         return redundancy_issues
+    
     except Exception as e:
         return [{"error": str(e)}]
-    
-def analyze_redundancy_folder(folder_path):
-    all_results = {}
-    for root, dirs, files in os.walk(folder_path):
-        dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
-        for file in files:
-            if file.endswith(".py"):
-                file_path = os.path.join(root, file)
-                redundancy = analyze_redundancy(file_path)
-                if redundancy:
-                    all_results[file_path] = redundancy
-    return all_results
 
 #analyse de convention non respecte
 def analyze_convention(file_path):
@@ -96,18 +90,6 @@ def analyze_convention(file_path):
         }
     except Exception as e:
         return {"error": str(e), "file": file_path}
-    
-def analyze_convention_folder(folder_path):
-    all_results = {}
-    for root, dirs, files in os.walk(folder_path):
-        dirs [:] = [d for d in dirs if d not in EXCLUDED_DIRS]
-        for file in files:
-            if file == "__init__.py" or not file.endswith(".py"):
-                continue
-            file_path = os.path.join(root, file)
-            result = analyze_convention(file_path)
-            all_results[file_path] = result
-    return all_results
 
 #analyse de code mort
 def analyze_dead_code(file_path):
@@ -137,8 +119,18 @@ def analyze_dead_code(file_path):
         return {"file": file_path, "dead_code":dead_code_warning}
     except Exception as e:
         return {"error": str(e), "file": file_path}
-    
-def analyze_dead_code_folder(folder_path):
+
+#Analyse d'un fichier .py
+def full_analyze_script(file_path):
+    return({
+        "complexity": analyze_complexity(file_path),
+        "redundancy": analyze_redundancy(file_path),
+        "convention": analyze_convention(file_path),
+        "dead_code": analyze_dead_code(file_path)
+    })
+
+#Analyse d'un dossier .zip
+def analyze_folder(folder_path):
     all_results = {}
     for root, dirs, files in os.walk(folder_path):
         dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
@@ -146,6 +138,6 @@ def analyze_dead_code_folder(folder_path):
             if file == "__init__.py" or not file.endswith(".py"):
                 continue
             file_path = os.path.join(root, file)
-            result = analyze_dead_code(file_path)
+            result = full_analyze_script(file_path)
             all_results[file_path] = result
     return all_results
