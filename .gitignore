@@ -1,8 +1,0 @@
-venv/
-_pycache_/
-*.pyc
-*.pyo
-*.pyd
-temp_files
-.idea/
-.vscode
