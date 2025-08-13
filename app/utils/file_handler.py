@@ -1,6 +1,5 @@
 import os
 import shutil
-import tempfile
 from fastapi import UploadFile
 
 async def save_upload_file_temporarily(file: UploadFile, destination_folder: str) -> str:
