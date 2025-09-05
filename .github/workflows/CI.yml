@@ -33,19 +33,19 @@ jobs:
           
           # Run all linting tools
           echo "Running Black (Code Formatting)..."
-          black --check --diff . || echo "Black formatting issues found"
+          black --scan --diff . || echo "Black formatting issues found"
           
           echo "Running isort (Import Sorting)..."
-          isort --check-only --diff . || echo "Import sorting issues found"
+          isort --scan-only --diff . || echo "Import sorting issues found"
           
           echo "Running Flake8 (Linting)..."
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || echo "Flake8 issues found"
           
-          echo "Running MyPy (Type Checking)..."
+          echo "Running MyPy (Type scanning)..."
           mypy . --ignore-missing-imports || echo "MyPy issues found (non-blocking)"
           
           echo "Running Bandit (Security Linting)..."
           bandit -r . -x tests/ || echo "Bandit security issues found (non-blocking)"
           
-          echo "Running Safety (Dependency Security Check)..."
-          safety check || echo "Safety dependency issues found (non-blocking)"
+          echo "Running Safety (Dependency Security scan)..."
+          safety scan || echo "Safety dependency issues found (non-blocking)"
