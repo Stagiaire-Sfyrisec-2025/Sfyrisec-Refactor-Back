@@ -11,7 +11,7 @@ on:
       - preprod
 
 jobs:
-  # Job 1: Code Quality & Linting
+# Job 1: Code Quality & Linting
   lint:
     name: Code Quality & Linting
     runs-on: self-hosted
@@ -31,19 +31,31 @@ jobs:
           if [ -f requirements.txt ]; then python3.11 -m pip install -r requirements.txt; fi
         
       - name: Run Black (Code Formatting)
-        run: python3.11 -m black --check --diff .
+        run: |
+          source /tmp/lint-env/bin/activate
+          black --check --diff .
         
       - name: Run isort (Import Sorting)
-        run: python3.11 -m isort --check-only --diff .
+        run: |
+          source /tmp/lint-env/bin/activate
+          isort --check-only --diff .
         
       - name: Run Flake8 (Linting)
-        run: python3.11 -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        run: |
+          source /tmp/lint-env/bin/activate
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         
       - name: Run MyPy (Type Checking)
-        run: python3.11 -m mypy . --ignore-missing-imports || true
+        run: |
+          source /tmp/lint-env/bin/activate
+          mypy . --ignore-missing-imports || true
         
       - name: Run Bandit (Security Linting)
-        run: python3.11 -m bandit -r . -x tests/ || true
+        run: |
+          source /tmp/lint-env/bin/activate
+          bandit -r . -x tests/ || true
         
       - name: Run Safety (Dependency Security Check)
-        run: python3.11 -m safety check || true
+        run: |
+          source /tmp/lint-env/bin/activate
+          safety check || true
