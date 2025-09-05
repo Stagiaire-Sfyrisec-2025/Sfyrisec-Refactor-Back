@@ -22,13 +22,13 @@ jobs:
         
       - name: Set up Python
         run: |
-          python3.11 --version
-          python3.11 -m pip install --upgrade pip
+          python3 --version
+          python3 -m pip install --upgrade pip
           
       - name: Install linting tools
         run: |
-          python3.11 -m pip install flake8 black isort mypy bandit safety
-          if [ -f requirements.txt ]; then python3.11 -m pip install -r requirements.txt; fi
+          python3 -m pip install flake8 black isort mypy bandit safety
+          if [ -f requirements.txt ]; then python3 -m pip install -r requirements.txt; fi
         
       - name: Run Black (Code Formatting)
         run: |
