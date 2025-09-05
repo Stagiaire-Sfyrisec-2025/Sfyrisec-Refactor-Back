@@ -15,7 +15,7 @@ jobs:
   lint:
     name: Code Quality & Linting
     runs-on: self-hosted
-    
+
     steps:      
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,10 +33,10 @@ jobs:
           
           # Run all linting tools
           echo "Running Black (Code Formatting)..."
-          black --scan --diff . || echo "Black formatting issues found"
+          black --check --diff . || echo "Black formatting issues found"
           
           echo "Running isort (Import Sorting)..."
-          isort --scan-only --diff . || echo "Import sorting issues found"
+          isort --check-only --diff . || echo "Import sorting issues found"
           
           echo "Running Flake8 (Linting)..."
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || echo "Flake8 issues found"
@@ -48,4 +48,4 @@ jobs:
           bandit -r . -x tests/ || echo "Bandit security issues found (non-blocking)"
           
           echo "Running Safety (Dependency Security scan)..."
-          safety scan || echo "Safety dependency issues found (non-blocking)"
+          safety check || echo "Safety dependency issues found (non-blocking)"
