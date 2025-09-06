@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 import os
 
-from services.analyze_service import analyze_dead_code
+from services.analyze_service import full_analyze_script
 from services.refactor_service.pipeline import apply_refactors
 
 router = APIRouter()
@@ -23,17 +23,31 @@ async def refactor_uploaded_file(session_id: str):
     if py_files:
         file_path = os.path.join(original_path, py_files[0])
 
-        # Analyse du code mort avant refactor
-        report = analyze_dead_code(file_path)
+        # Analyse complète avant refactor
+        # Note: `apply_refactors` utilise un rapport partiel, nous continuons de l'utiliser
+        # pour la logique de refactorisation, mais nous ferons une analyse complète après.
+        initial_analysis_for_refactor = full_analyze_script(file_path)
 
         # Appliquer le refactor
         refactored_dir = os.path.join(session_path, "refactored")
         os.makedirs(refactored_dir, exist_ok=True)
 
-        output_path = apply_refactors(file_path, report, output_dir=refactored_dir)
+        # `apply_refactors` n'a besoin que du rapport de code mort.
+        # Nous utilisons une analyse ciblée pour cela.
+        from services.analyze_service import analyze_dead_code
+        dead_code_report = analyze_dead_code(file_path)
 
-        # Réanalyser le fichier refactorisé
-        new_report = analyze_dead_code(output_path)
+
+        output_path = apply_refactors(file_path, {"dead_code": dead_code_report}, output_dir=refactored_dir)
+
+        # Réanalyser le fichier refactorisé avec une analyse complète
+        new_report_data = full_analyze_script(output_path)
+
+        # Formatter le rapport pour correspondre à ce que le frontend attend
+        new_report = {
+            os.path.basename(output_path): new_report_data
+        }
+
 
         # Lire le contenu des fichiers
         try:

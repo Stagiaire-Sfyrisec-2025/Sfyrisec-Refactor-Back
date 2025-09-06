@@ -16,9 +16,7 @@ class DeadCodeRefactor(ast.NodeTransformer):
         self.unused_imports: Set[str] = set()
         self.unused_classes: Set[str] = set()
         
-        for msg in self.dead_code_report.get("dead_code", []):
-            message = msg.get("message", "")
-            
+        for message in self.dead_code_report.get("dead_code", []):
             # Fonctions - pattern: "Function 'nom' is defined but never used"
             if "Function" in message and "'" in message:
                 match = re.search(r"Function '([^']+)'", message)
