@@ -80,13 +80,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+     - name: Cache pip dependencies
+        uses: actions/cache@v4
+        id: cache-pip-build
+        with:
+          path: /tmp/build-env
+          key: ${{ runner.os }}-pip-build-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-build-
+
+      - name: Install dependencies and create package
         run: |
+          # Create virtual environment
+          if [ ! -d "/tmp/build-env" ]; then
+            python3.11 -m venv /tmp/build-env
+          fi
+          source /tmp/build-env/bin/activate
+          
+          # Install dependencies
           pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Create application package
-        run: |
           # Create a simple package structure if needed
           if [ -f setup.py ]; then
             python setup.py sdist bdist_wheel
