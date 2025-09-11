@@ -65,3 +65,78 @@ jobs:
           
           echo "Running Safety (Dependency Security scan)..."
           safety check || echo "Safety dependency issues found (non-blocking)"
+
+  # Job 2: Build
+  build:
+    name: Build Python Application
+    runs-on: self-hosted
+    needs: lint
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.image-tag }}
+      timestamp: ${{ steps.timestamp.outputs.timestamp }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Create application package
+        run: |
+          # Create a simple package structure if needed
+          if [ -f setup.py ]; then
+            python setup.py sdist bdist_wheel
+          fi
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-build-${{ matrix.python-version }}
+          path: |
+            dist/
+            *.py
+            requirements*.txt
+          retention-days: 7
+
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push'
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Generate timestamp
+        id: timestamp
+        run: |
+          timestamp=$(date +%s)
+          echo "TIMESTAMP=${timestamp}" >> $GITHUB_ENV
+          echo "timestamp=${timestamp}" >> $GITHUB_OUTPUT
+
+      - name: Set image metadata
+        id: meta
+        run: |
+          image_tag="${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:${TIMESTAMP}"
+          echo "image-tag=${image_tag}" >> $GITHUB_OUTPUT
+      
+      - name: Build Docker image
+        run: |
+          docker build . \
+            --file Dockerfile \
+            --tag job-${{ github.run_id }}:${{ github.sha }} \
+            --tag job-${{ github.run_id }}:latest \
+            --tag ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:${TIMESTAMP} \
+            --tag ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest
+
+      - name: Push Docker image to Docker Hub
+        if: github.event_name == 'push'
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:${TIMESTAMP}
+          docker push ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest
