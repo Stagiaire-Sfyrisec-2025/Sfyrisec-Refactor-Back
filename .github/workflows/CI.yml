@@ -23,11 +23,17 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Python 
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11.9'
+          cache: 'pip'
         
       - name: Run Python linting
         run: |
           # Create virtual environment
-          python3.11 -m venv /tmp/lint-env
+          python -m venv /tmp/lint-env
           source /tmp/lint-env/bin/activate
           
           # Install tools and dependencies
