@@ -24,16 +24,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 
-        uses: actions/setup-python@v4
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        id: cache-pip
         with:
-          python-version: '3.11.9'
-          cache: 'pip'
+          path: /tmp/lint-env
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
         
       - name: Run Python linting
         run: |
           # Create virtual environment
-          python -m venv /tmp/lint-env
+          if [ ! -d "/tmp/lint-env" ]; then
+            python3.11 -m venv /tmp/lint-env
+          fi
           source /tmp/lint-env/bin/activate
           
           # Install tools and dependencies
