@@ -80,6 +80,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Find the runner username
+        run: whoami
+
       - name: Cache pip dependencies
         uses: actions/cache@v4
         id: cache-pip-build
