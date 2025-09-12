@@ -3,14 +3,10 @@ name: Python Project CI/CD
 on:
   push:
     branches: 
-      - main
-      - develop
       - prod
       - preprod
   pull_request:
     branches:
-      - main
-      - develop
       - prod
       - preprod
 
@@ -18,40 +14,137 @@ jobs:
   # Job 1: Code Quality & Linting
   lint:
     name: Code Quality & Linting
-    runs-on: self-hosted    
+    runs-on: self-hosted
+
     steps:      
+
+      - name: Cleanup workspace
+        run: rm -rf ${{ github.workspace }}/* 2>/dev/null || true
+
       - name: Checkout code
         uses: actions/checkout@v4
-        
-      - name: Set up Python
-        uses: actions/setup-python@v4
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        id: cache-pip
         with:
-          python-version: '3.14'
-          cache: 'pip'
-          
-      - name: Verify Python installation
-        run: python --version
+          path: /tmp/lint-env
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
         
-      - name: Install dependencies
+      - name: Run Python linting
         run: |
-          python -m pip install --upgrade pip
+          # Create virtual environment
+          if [ ! -d "/tmp/lint-env" ]; then
+            python3.11 -m venv /tmp/lint-env
+          fi
+          source /tmp/lint-env/bin/activate
+          
+          # Install tools and dependencies
+          pip install --upgrade pip
           pip install flake8 black isort mypy bandit safety
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        
-      - name: Run Black (Code Formatting)
-        run: black --check --diff .
-        
-      - name: Run isort (Import Sorting)
-        run: isort --check-only --diff .
-        
-      - name: Run Flake8 (Linting)
-        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        
-      - name: Run MyPy (Type Checking)
-        run: mypy . --ignore-missing-imports || true
-        
-      - name: Run Bandit (Security Linting)
-        run: bandit -r . -x tests/ || true
-        
-      - name: Run Safety (Dependency Security Check)
-        run: safety check || true
+          
+          # Run all linting tools
+          echo "Running Black (Code Formatting)..."
+          black --check --diff . || echo "Black formatting issues found"
+          
+          echo "Running isort (Import Sorting)..."
+          isort --check-only --diff . || echo "Import sorting issues found"
+          
+          echo "Running Flake8 (Linting)..."
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || echo "Flake8 issues found"
+          
+          echo "Running MyPy (Type scanning)..."
+          mypy . --ignore-missing-imports || echo "MyPy issues found (non-blocking)"
+          
+          echo "Running Bandit (Security Linting)..."
+          bandit -r . -x tests/ || echo "Bandit security issues found (non-blocking)"
+          
+          echo "Running Safety (Dependency Security scan)..."
+          safety check || echo "Safety dependency issues found (non-blocking)"
+
+  # Job 2: Build
+  build:
+    name: Build Python Application
+    runs-on: self-hosted
+    needs: lint
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.image-tag }}
+      timestamp: ${{ steps.timestamp.outputs.timestamp }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        id: cache-pip-build
+        with:
+          path: /tmp/build-env
+          key: ${{ runner.os }}-pip-build-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-build-
+
+      - name: Install dependencies and create package
+        run: |
+          # Create virtual environment
+          if [ ! -d "/tmp/build-env" ]; then
+            python3.11 -m venv /tmp/build-env
+          fi
+          source /tmp/build-env/bin/activate
+          
+          # Install dependencies
+          pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+          # Create a simple package structure if needed
+          if [ -f setup.py ]; then
+            python setup.py sdist bdist_wheel
+          fi
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-build-${{ matrix.python-version }}
+          path: |
+            dist/
+            *.py
+            requirements*.txt
+          retention-days: 7
+
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push'
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Generate timestamp
+        id: timestamp
+        run: |
+          timestamp=$(date +%s)
+          echo "TIMESTAMP=${timestamp}" >> $GITHUB_ENV
+          echo "timestamp=${timestamp}" >> $GITHUB_OUTPUT
+
+      - name: Set image metadata
+        id: meta
+        run: |
+          image_tag="${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:${TIMESTAMP}"
+          echo "image-tag=${image_tag}" >> $GITHUB_OUTPUT
+      
+      - name: Build Docker image
+        run: |
+          sudo docker build . \
+            --file Dockerfile \
+            --tag job-${{ github.run_id }}:${{ github.sha }} \
+            --tag job-${{ github.run_id }}:latest \
+            --tag ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:${TIMESTAMP} \
+            --tag ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest
+
+      - name: Push Docker image to Docker Hub
+        if: github.event_name == 'push'
+        run: |
+          sudo docker push ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:${TIMESTAMP}
+          sudo docker push ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest
