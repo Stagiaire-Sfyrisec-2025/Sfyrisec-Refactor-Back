@@ -127,4 +127,4 @@ jobs:
 
       - name: Push Docker image to Docker Hub
         if: github.event_name == 'push'
-        run: sudo docker push ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest
+        run: sudo docker push ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest-refactor-api
