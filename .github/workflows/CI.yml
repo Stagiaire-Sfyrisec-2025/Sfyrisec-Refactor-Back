@@ -72,10 +72,6 @@ jobs:
     runs-on: self-hosted
     needs: lint
 
-    outputs:
-      image-tag: ${{ steps.meta.outputs.image-tag }}
-      timestamp: ${{ steps.timestamp.outputs.timestamp }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -110,7 +106,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: python-build-${{ matrix.python-version }}
+          name: python-build
           path: |
             dist/
             *.py
@@ -120,19 +116,6 @@ jobs:
       - name: Log in to Docker Hub
         if: github.event_name == 'push'
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-      - name: Generate timestamp
-        id: timestamp
-        run: |
-          timestamp=$(date +%s)
-          echo "TIMESTAMP=${timestamp}" >> $GITHUB_ENV
-          echo "timestamp=${timestamp}" >> $GITHUB_OUTPUT
-
-      - name: Set image metadata
-        id: meta
-        run: |
-          image_tag="${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:${TIMESTAMP}"
-          echo "image-tag=${image_tag}" >> $GITHUB_OUTPUT
       
       - name: Build Docker image
         run: |
@@ -140,11 +123,8 @@ jobs:
             --file Dockerfile \
             --tag job-${{ github.run_id }}:${{ github.sha }} \
             --tag job-${{ github.run_id }}:latest \
-            --tag ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:${TIMESTAMP} \
             --tag ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest
 
       - name: Push Docker image to Docker Hub
         if: github.event_name == 'push'
-        run: |
-          sudo docker push ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:${TIMESTAMP}
-          sudo docker push ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest
+        run: sudo docker push ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest
