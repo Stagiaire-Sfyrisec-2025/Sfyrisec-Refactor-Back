@@ -16,26 +16,28 @@ class DeadCodeRefactor(ast.NodeTransformer):
         self.unused_imports: Set[str] = set()
         self.unused_classes: Set[str] = set()
         
-        for message in self.dead_code_report.get("dead_code", []):
-            # Fonctions - pattern: "Function 'nom' is defined but never used"
+        for msg in self.dead_code_report.get("dead_code", []):
+            message = msg.get("message", "")
+            
+            # Fonctions
             if "Function" in message and "'" in message:
                 match = re.search(r"Function '([^']+)'", message)
                 if match:
                     self.unused_funcs.add(match.group(1))
             
-            # Variables - pattern: "Variable 'nom' is defined but never used"  
+            # Variables  
             elif "variable" in message.lower() and "'" in message:
                 match = re.search(r"Variable '([^']+)'", message, re.IGNORECASE)
                 if match:
                     self.unused_vars.add(match.group(1))
             
-            # Imports - pattern: "Import 'nom' is not used"
+            # Imports
             elif "import" in message.lower() and "'" in message:
                 match = re.search(r"Import '([^']+)'", message, re.IGNORECASE)
                 if match:
                     self.unused_imports.add(match.group(1))
             
-            # Classes - pattern: "Class 'nom' is defined but never used"
+            # Classes
             elif "Class" in message and "'" in message:
                 match = re.search(r"Class '([^']+)'", message)
                 if match:
@@ -48,10 +50,8 @@ class DeadCodeRefactor(ast.NodeTransformer):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         """Supprime les fonctions non utilisées"""
-        if node.name in self.unused_funcs:
-            logging.info(f"Removing unused function: {node.name}")
-            return None
-        return self.generic_visit(node)
+        
+        return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         """Supprime les classes non utilisées"""
@@ -85,7 +85,6 @@ class DeadCodeRefactor(ast.NodeTransformer):
         
         new_names = []
         for alias in node.names:
-            # Vérifier si l'import est utilisé
             full_import_name = f"{module_name}.{alias.name}" if module_name else alias.name
             alias_name = alias.asname or alias.name
             

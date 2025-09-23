@@ -28,8 +28,6 @@ def analyze_dead_code_ast(file_path: str) -> Dict[str, Any]:
                     functions_defined[node.name] = node.lineno
                 self.generic_visit(node)
 
-
-            
             def visit_Import(self, node):
                 for alias in node.names:
                     imports_defined[alias.name] = node.lineno
