@@ -11,12 +11,16 @@ except ImportError:
     to_source = astor.to_source
 
 from .dead_code_rule import DeadCodeRefactor
-from .docstring_rule import DocstringRule
-from .format_rule import FormatRule
+from .convention_rule import ConventionRefactor
 
 def apply_refactors(file_path, report, rules=None, output_dir="refactored", in_place=False):
     """
-    Applique les règles de refactorisation sur un fichier Python.
+    Applique les règles de refactorisation sur un fichier.
+    - file_path : chemin du fichier original
+    - report : résultat de l'analyse (ex. analyze_dead_code)
+    - rules : liste de classes de règles
+    - output_dir : dossier de sortie (si in_place=False)
+    - in_place : bool, si True écrase le fichier original
     """
     with open(file_path, "r", encoding="utf-8") as f:
         code = f.read()
@@ -26,32 +30,20 @@ def apply_refactors(file_path, report, rules=None, output_dir="refactored", in_p
     except SyntaxError as e:
         raise ValueError(f"Erreur de parsing du fichier {file_path}: {e}")
 
-    # Regles par défaut : suppression code mort + docstrings
+    # Le rapport complet est maintenant passé.
+    # Le rapport de code mort est sous la clé "dead_code".
+    dead_code_report = report.get("dead_code", {})
+
     if rules is None:
-        rules = [DeadCodeRefactor, DocstringRule]
+        rules = [
+            (DeadCodeRefactor, dead_code_report),
+            (ConventionRefactor, report.get("convention", {})),
+        ]
 
-    # Separation des regles AST des regles de formatage
-    ast_rules = []
-    format_rules = []
-    
-    for RuleClass in rules:
-        if RuleClass.__name__ == "FormatRule":
-            format_rules.append(RuleClass)
-        else:
-            ast_rules.append(RuleClass)
-
-    # Appliquer les regles AST
-    for RuleClass in ast_rules:
-        if RuleClass is DeadCodeRefactor:
-            sub_report = report.get("dead_code", {})
-        elif RuleClass is DocstringRule:
-            sub_report = report.get("convention", [])
-        else:
-            sub_report = report
-
-        rule = RuleClass(sub_report)
-        tree = rule.visit(tree)
-        ast.fix_missing_locations(tree)
+    for RuleClass, rule_report in rules:
+        if rule_report:
+            rule = RuleClass(rule_report)
+            tree = rule.visit(tree)
 
     new_code = to_source(tree)
 
@@ -64,11 +56,6 @@ def apply_refactors(file_path, report, rules=None, output_dir="refactored", in_p
 
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(new_code)
-
-    # Appliquer le formatage a la fin
-    for FormatRuleClass in format_rules:
-        rule = FormatRuleClass(report.get("format", {}))
-        output_path = rule.visit_file(output_path)
 
     logging.info(f"Refactoring terminé : {file_path} -> {output_path}")
     return output_path
