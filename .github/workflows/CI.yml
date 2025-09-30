@@ -113,10 +113,6 @@ jobs:
             requirements*.txt
           retention-days: 7
 
-      - name: Log in to Docker Hub
-        if: github.event_name == 'push'
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-      
       - name: Build Docker image
         run: |
           sudo docker build . \
@@ -125,6 +121,59 @@ jobs:
             --tag job-${{ github.run_id }}:latest \
             --tag ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest-refactor-api
 
+  # Job 3: Security Scan (Docker Image Only)
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: self-hosted
+    needs: build
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@v0.2.0
+        with:
+          cache: true
+          version: v0.64.1
+
+      # Docker image scan (SARIF for GitHub Security)
+      - name: Run Trivy vulnerability scanner on Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'job-${{ github.run_id }}:latest'
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          skip-setup-trivy: true
+          ignore-unfixed: true
+
+      - name: Upload Docker image scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-image-results.sarif'
+
+      # Docker image vulnerabilities (table format for logs with exit code)
+      - name: Run Trivy on Docker image (fail on critical/high)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'job-${{ github.run_id }}:latest'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          skip-setup-trivy: true
+          ignore-unfixed: true
+
+  docker-push:
+    name: Push Docker Image to Registry
+    runs-on: self-hosted
+    needs: [security-scan, build]
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
       - name: Push Docker image to Docker Hub
-        if: github.event_name == 'push'
         run: sudo docker push ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest-refactor-api
