@@ -92,6 +92,9 @@ jobs:
             python3.11 -m venv /tmp/build-env
           fi
           source /tmp/build-env/bin/activate
+
+          # Upgrade setuptools
+          python -m pip install --upgrade setuptools
           
           # Install dependencies
           pip install --upgrade pip
@@ -123,13 +126,13 @@ jobs:
 
       - name: Save Docker image as tar
         run: |
-          docker save job-${{ github.run_id }}:latest -o image.tar
+          docker save job-${{ github.run_id }}:latest -o image-api.tar
 
       - name: Upload Docker image tar
         uses: actions/upload-artifact@v4
         with:
           name: docker-image-tar
-          path: image.tar
+          path: image-api.tar
           retention-days: 1
 
   # Job 3: Security Scan (Docker Image Only)
@@ -155,7 +158,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner on Docker image tar
         run: |
-          trivy image --input image.tar \
+          trivy image --input image-api.tar \
             --format sarif \
             --output trivy-image-results.sarif \
             --severity CRITICAL,HIGH \
@@ -177,6 +180,11 @@ jobs:
           severity: 'CRITICAL,HIGH'
           skip-setup-trivy: true
           ignore-unfixed: true
+
+      - name: Always delete Docker image tar
+        if: always()
+        run: |
+          if [ -f image-api.tar ]; then rm image-api.tar; fi
 
   docker-push:
     name: Push Docker Image to Registry
