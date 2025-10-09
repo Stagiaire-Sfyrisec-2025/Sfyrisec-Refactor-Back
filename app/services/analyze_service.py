@@ -26,11 +26,10 @@ def analyze_convention(file_path):
     try:
         result = subprocess.run(
             ["pylint", file_path, "-f", "json"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            capture_output=True,
+            text=True,
+            check=True
         )
-
         output = result.stdout.strip()
         if output:
             messages = json.loads(output)
@@ -48,6 +47,19 @@ def analyze_convention(file_path):
                 } for msg in messages
             ]
         }
+    except subprocess.CalledProcessError as e:
+        # Pylint peut retourner un status non-zéro même avec une sortie JSON valide
+        # (par exemple, s'il trouve des erreurs), donc on essaie de parser stdout quand même.
+        try:
+            messages = json.loads(e.stdout) if e.stdout else []
+            return {
+                "file": file_path,
+                "messages": messages,
+                "error": f"Pylint exited with status {e.returncode}",
+                "stderr": e.stderr
+            }
+        except json.JSONDecodeError:
+            return {"error": f"Pylint failed with status {e.returncode} and invalid JSON output.", "file": file_path, "stderr": e.stderr}
     except Exception as e:
         return {"error": str(e), "file": file_path}
 
