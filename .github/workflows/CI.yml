@@ -118,11 +118,12 @@ jobs:
 
       - name: Build Docker image
         run: |
-          sudo docker build . \
+          docker build . \
             --file Dockerfile \
             --tag job-${{ github.run_id }}:${{ github.sha }} \
             --tag job-${{ github.run_id }}:latest \
             --tag ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest-refactor-api
+
 
       - name: Save Docker image as tar
         run: |
