@@ -118,7 +118,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S docker build . \
+          docker build . \
             --file Dockerfile \
             --tag job-${{ github.run_id }}:${{ github.sha }} \
             --tag job-${{ github.run_id }}:latest \
