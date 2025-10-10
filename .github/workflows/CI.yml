@@ -10,6 +10,11 @@ on:
       - prod
       - preprod
 
+permissions:
+  contents: read
+  security-events: write
+
+
 jobs:
   # Job 1: Code Quality & Linting
   lint:
@@ -136,6 +141,11 @@ jobs:
           path: image-api.tar
           retention-days: 1
 
+      - name: Cleanup image tar
+        if: always()
+        run: |
+          if [ -f image-api.tar ]; then rm image-api.tar; fi
+
   # Job 3: Security Scan (Docker Image Only)
   security-scan:
     name: Security Vulnerability Scan
@@ -166,7 +176,7 @@ jobs:
             --ignore-unfixed
 
       - name: Upload Docker image scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-image-results.sarif'
