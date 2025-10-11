@@ -119,13 +119,12 @@ jobs:
         run: |
           docker build . \
             --file Dockerfile \
-            --tag job-${{ github.run_id }}:${{ github.sha }} \
-            --tag job-${{ github.run_id }}:latest \
+            --tag sfyrisec-refactor-app-image:latest \
             --tag ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest-refactor-api
 
       - name: Save Docker image as tar
         run: |
-          docker save job-${{ github.run_id }}:latest -o image-api.tar
+          docker save sfyrisec-refactor-app-image:latest -o image-api.tar
 
       - name: Upload Docker image tar
         uses: actions/upload-artifact@v4
