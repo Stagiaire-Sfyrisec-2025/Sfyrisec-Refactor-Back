@@ -22,7 +22,6 @@ jobs:
     runs-on: self-hosted
 
     steps:      
-
       - name: Cleanup workspace
         run: rm -rf ${{ github.workspace }}/* 2>/dev/null || true
 
@@ -38,21 +37,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-        
       - name: Run Python linting
         run: |
-          # Create virtual environment
+          # Create virtual environment if missing
           if [ ! -d "/tmp/lint-env" ]; then
-            python3.11 -m venv /tmp/lint-env
+            python -m venv /tmp/lint-env
           fi
           source /tmp/lint-env/bin/activate
-          
-          # Install tools and dependencies
+
+          # Upgrade pip and install tools
           pip install --upgrade pip
           pip install flake8 black isort mypy bandit safety
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          
-          # Run all linting tools
+
+          # Run all linting/security tools
           echo "Running Black (Code Formatting)..."
           black --check --diff . || echo "Black formatting issues found"
           
@@ -71,7 +69,7 @@ jobs:
           echo "Running Safety (Dependency Security scan)..."
           safety check || echo "Safety dependency issues found (non-blocking)"
 
-  # Job 2: Build
+# Job 2: Build Python Application
   build:
     name: Build Python Application
     runs-on: self-hosted
@@ -90,22 +88,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-build-
 
-      - name: Install dependencies and create package
+      - name: Setup virtual environment & install dependencies
         run: |
-          # Create virtual environment
           if [ ! -d "/tmp/build-env" ]; then
-            python3.11 -m venv /tmp/build-env
+            python -m venv /tmp/build-env
           fi
           source /tmp/build-env/bin/activate
-
-          # Upgrade setuptools
-          python -m pip install --upgrade setuptools
-          
-          # Install dependencies
-          pip install --upgrade pip
+          pip install --upgrade pip setuptools
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-          # Create a simple package structure if needed
+      - name: Build package (if setup.py exists)
+        run: |
+          source /tmp/build-env/bin/activate
           if [ -f setup.py ]; then
             python setup.py sdist bdist_wheel
           fi
@@ -125,14 +119,12 @@ jobs:
         run: |
           docker build . \
             --file Dockerfile \
-            --tag job-${{ github.run_id }}:${{ github.sha }} \
-            --tag job-${{ github.run_id }}:latest \
+            --tag sfyrisec-refactor-app-image:latest \
             --tag ${{ secrets.DOCKER_USERNAME }}/sfyrisec-refactor-app-image:latest-refactor-api
-
 
       - name: Save Docker image as tar
         run: |
-          docker save job-${{ github.run_id }}:latest -o image-api.tar
+          docker save sfyrisec-refactor-app-image:latest -o image-api.tar
 
       - name: Upload Docker image tar
         uses: actions/upload-artifact@v4
@@ -167,6 +159,12 @@ jobs:
         with:
           name: docker-image-tar
 
+      - name: Load Docker image tar
+        run: |
+          docker load -i image-api.tar
+          # Retagger l'image pour matcher l'ancien job-ref si nécessaire
+          docker tag sfyrisec-refactor-app-image:latest job-${{ github.run_id }}:latest
+          
       - name: Run Trivy vulnerability scanner on Docker image tar
         run: |
           trivy image --input image-api.tar \
