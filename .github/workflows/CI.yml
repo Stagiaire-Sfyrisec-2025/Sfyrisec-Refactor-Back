@@ -159,6 +159,9 @@ jobs:
         with:
           name: docker-image-tar
 
+      - name: Load Docker image tar
+        run: docker load -i image-api.tar
+
       - name: Run Trivy vulnerability scanner on Docker image tar
         run: |
           trivy image --input image-api.tar \
