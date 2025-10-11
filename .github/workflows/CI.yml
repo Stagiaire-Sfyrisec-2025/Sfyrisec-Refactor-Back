@@ -44,12 +44,12 @@ jobs:
             python -m venv /tmp/lint-env
           fi
           source /tmp/lint-env/bin/activate
-          
+
           # Upgrade pip and install tools
           pip install --upgrade pip
           pip install flake8 black isort mypy bandit safety
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          
+
           # Run all linting/security tools
           echo "Running Black (Code Formatting)..."
           black --check --diff . || echo "Black formatting issues found"
@@ -73,8 +73,6 @@ jobs:
   build:
     name: Build Python Application
     runs-on: self-hosted
-    container:
-      image: python:3.11-slim
     needs: lint
 
     steps:
