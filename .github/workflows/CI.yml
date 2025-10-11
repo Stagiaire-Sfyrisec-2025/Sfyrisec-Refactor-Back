@@ -160,8 +160,11 @@ jobs:
           name: docker-image-tar
 
       - name: Load Docker image tar
-        run: docker load -i image-api.tar
-
+        run: |
+          docker load -i image-api.tar
+          # Retagger l'image pour matcher l'ancien job-ref si nécessaire
+          docker tag sfyrisec-refactor-app-image:latest job-${{ github.run_id }}:latest
+          
       - name: Run Trivy vulnerability scanner on Docker image tar
         run: |
           trivy image --input image-api.tar \
