@@ -20,8 +20,6 @@ jobs:
   lint:
     name: Code Quality & Linting
     runs-on: self-hosted
-    container:
-      image: python:3.11-slim
 
     steps:      
       - name: Cleanup workspace
